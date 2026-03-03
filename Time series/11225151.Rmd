@@ -1,0 +1,297 @@
+---
+title: "TS_canhan"
+author: "Do Quang Phuoc"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+  word_document: default
+  always_allow_html: true
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+```{r}
+library(readxl)
+library(tseries)
+library(forecast)
+library(urca)
+library(Metrics)
+library(ggplot2)
+library(TSstudio)
+```
+### PHAN 1
+```{r}
+rev=read_excel("C:/Users/Admin/OneDrive - National Economics University/Financial_series_GMD.xlsx")
+```
+```{r}
+rev = ts(rev, start = c(2010,1), frequency = 4)
+time = seq_along(rev)
+t1 = head(time, -4)
+t2 = tail(time, 4)
+ts_plot(rev,
+        title = "Doanh thu thuan GMD giai doan 2010 - 2024",
+        Xtitle = "Thoi gian",
+        Ytitle = "Doanh thu thuan")
+```
+
+
+```{r}
+train_set = rev[1:(length(rev)-4)]
+val = rev[(length(rev)-3):length(rev)]
+rev1 = ts(train_set, start = c(2010,1), frequency = 4)
+```
+
+# Mo hinh Lin Lin
+```{r}
+reg_lin_lin = lm(rev1 ~ t1)
+summary(reg_lin_lin)
+rmse(rev1,fitted(reg_lin_lin))
+mape(rev1,fitted(reg_lin_lin))
+new_linlin=data.frame(t1=c(57,58,59,60))
+pre_lin_lin=predict(reg_lin_lin,newdata = new_linlin)
+round(pre_lin_lin,2)
+rmse(val,pre_lin_lin)
+mape(val,pre_lin_lin)
+```
+# Mo hinh Lin Log
+```{r}
+reg_lin_log = lm(rev1 ~ log(t1))
+summary(reg_lin_log)
+rmse(rev1,fitted(reg_lin_log))
+mape(rev1,fitted(reg_lin_log))
+new_linlog=data.frame(t1=c(57,58,59,60))
+pre_lin_log=predict(reg_lin_log,newdata = new_linlog)
+round(pre_lin_log,2)
+rmse(val,pre_lin_log)
+mape(val,pre_lin_log)
+```
+# Mo hinh Log Lin
+```{r}
+reg_log_lin = lm(log(rev1)~t1)
+summary(reg_log_lin)
+rmse(rev1,exp(fitted(reg_log_lin)))
+mape(rev1,exp(fitted(reg_log_lin)))
+new_loglin=data.frame(t1=c(57,58,59,60))
+pre_log_lin=exp(predict(reg_log_lin,newdata = new_loglin))
+round(pre_log_lin,2)
+rmse(val,pre_log_lin)
+mape(val,pre_log_lin)
+```
+# Mo hinh Log Log
+```{r}
+reg_log_log = lm(log(rev1)~log(t1))
+summary(reg_log_log)
+rmse(rev1,exp(fitted(reg_log_log)))
+mape(rev1,exp(fitted(reg_log_log)))
+new_loglog=data.frame(t1=c(57,58,59,60))
+pre_log_log=exp(predict(reg_log_log,newdata = new_loglog))
+round(pre_log_log,2)
+rmse(val,pre_log_log)
+mape(val,pre_log_log)
+```
+```{r}
+s1 <- c(rep(c(1,0,0,0), 15))				
+s2 <- c(rep(c(0,1,0,0), 15))
+s3 <- c(rep(c(0,0,1,0), 15))
+s4 <- c(rep(c(0,0,0,1), 15))
+s1 = s1[1:56]
+s2 = s2[1:56]
+s3 = s3[1:56]
+s4 = s4[1:56]
+```
+# Mo hinh xu the tuyen tinh mua vu dang cong
+```{r}
+reg_linear_a=lm(rev1~t1+s2+s3+s4)
+summary(reg_linear_a)
+rmse(rev1,fitted(reg_linear_a))
+mape(rev1,fitted(reg_linear_a))
+new_s2 <- c(0,1,0,0)  # Q2 = 1
+new_s3 <- c(0,0,1,0)  # Q3 = 1
+new_s4 <- c(0,0,0,1)  # Q4 = 1
+new_time <- 57:60
+new_a <- data.frame(t1 = new_time, s2 =new_s2, s3 = new_s3, s4 = new_s4)
+rev_a_2024=predict(reg_linear_a,new_a)
+round(rev_a_2024,2)
+rmse(val,rev_a_2024)
+mape(val,rev_a_2024)
+```
+# Mo hinh tuyen tinh co mua vu dang nhan
+```{r}
+tr2 <- t1*s2
+tr3 <- t1*s3
+tr4 <- t1*s4
+reg_linear_m <- lm(rev1 ~ t1 + tr2 + tr3 + tr4)
+summary(reg_linear_m)
+rmse(rev1,fitted(reg_linear_m))
+mape(rev1,fitted(reg_linear_m))
+new_t2 <- new_time * new_s2
+new_t3 <- new_time * new_s3
+new_t4 <- new_time * new_s4
+new_m <- data.frame(t1 = new_time, tr2 =new_t2, tr3 = new_t3, tr4 = new_t4)
+rev_m_2024=predict(reg_linear_m,new_m)
+round(rev_m_2024,2)
+rmse(val,rev_m_2024)
+mape(val,rev_m_2024)
+```
+# Mo hinh Holt Winter dang cong
+```{r}
+hw_a=HoltWinters(rev1,seasonal = "a")
+hw_a
+
+rmse(rev1,fitted(hw_a)[,"xhat"])
+mape(rev1,fitted(hw_a)[,"xhat"])
+hwa_fc=forecast(hw_a,h=4)
+rev_hwa_2024=hwa_fc$mean
+round(rev_hwa_2024,2)
+rmse(val,rev_hwa_2024)
+mape(val,rev_hwa_2024)
+```
+# Mo hinh Holt Winter dang nhan
+```{r}
+hw_m=HoltWinters(rev1,seasonal = "m")
+hw_m
+rmse(rev1,fitted(hw_m)[,"xhat"])
+mape(rev1,fitted(hw_m)[,"xhat"])
+hwm_fc=forecast(hw_m,h=4)
+rev_hwm_2024=hwm_fc$mean
+rev_hwm_2024
+rmse(val,rev_hwm_2024)
+mape(val,rev_hwm_2024)
+```
+# Sung dung mo hinh Holt Winter dang cong de du bao cho nam 2025
+```{r}
+hw_a_2025=HoltWinters(rev,seasonal = "a")
+hw_a_2025
+fc_2025=forecast(hw_a_2025,h=4)
+round(fc_2025$mean,2)
+```
+### PHAN 2
+
+```{r}
+gmd=read.csv("C:/Data/Dữ liệu Lịch sử GMD.csv")
+price=gmd$Lần.cuối
+price=gsub("\\.","",price)
+price=gsub(",",".",price)
+price=ts(as.numeric(price),start = 1,frequency = 1)
+plot(price,type = "l",col="blue")
+log_return=numeric(length(price)-1)
+for(i in 2:length(price)){log_return[i-1]=log(price[i]/price[i-1])*100}
+log_return=ts(log_return,start = 1,frequency = 1)
+plot(log_return,type="l",col="brown")
+```
+
+# Kiem dinh nghiem don vi cho chuoi gia
+```{r}
+# Kiem dinh nghiem don vi cho chuoi gia
+summary(ur.df(price,type = "trend", selectlags = "AIC"))
+summary(ur.df(price,type = "none",selectlags = "AIC"))
+# Kiem dinh nghiem don vi cho chuoi sai phan
+summary(ur.df(diff(price),type = "trend", selectlags = "AIC"))
+summary(ur.df(diff(price),type = "drift",selectlags = "AIC"))
+summary(ur.df(diff(price),type = "none",selectlags = "AIC"))
+```
+```{r}
+Acf(diff(price))
+Pacf(diff(price))
+```
+# Lua chon mo hinh ARIMA
+```{r}
+a_313=arima(price,c(3,1,3))
+summary(a_313)
+autoplot(a_313)
+checkresiduals(a_313)
+```
+
+
+```{r}
+a_111=auto.arima(price)
+summary(a_111)
+autoplot(a_111)
+checkresiduals(a_111)
+```
+```{r}
+a_818=arima(price,c(8,1,8))
+summary(a_818)
+autoplot(a_818)
+checkresiduals(a_818)
+```
+
+# Su dung mo hinh da chon de du bao cho chuoi gia
+```{r}
+fc_price1=forecast(a_313,h=10)
+plot(fc_price1)
+fc_price1=fc_price1$mean
+price_real=c(66.2, 65.8, 64.1, 62.7, 63.5, 63.5, 62.0, 61.8, 60.0, 60.2)
+rmse(price_real,fc_price1)
+mape(price_real,fc_price1)
+```
+```{r}
+fc_price2=forecast(a_818,h=10)
+plot(fc_price2)
+fc_price2=fc_price2$mean
+price_real=c(66.2, 65.8, 64.1, 62.7, 63.5, 63.5, 62.0, 61.8, 60.0, 60.2)
+rmse(price_real,fc_price2)
+mape(price_real,fc_price2)
+```
+
+```{r}
+p=data.frame(tt=seq_along(price_real),price_real,fc_price1)
+ggplot(p,aes(x=tt))+geom_line(aes(y=price_real,color="Gia thuc te"),linewidth=2)+geom_line(aes(y=fc_price1,color="Gia du bao"),linewidth=2)+labs(title = "So sanh gia co phieu du bao va thuc te",x="Time",y="Price")+scale_color_manual(values = c("Gia thuc te" = "red", "Gia du bao" = "blue")) +
+  theme_minimal()
+```
+
+
+
+# Kiem dinh nghiem don vi cho chuoi Log renturn
+```{r}
+summary(ur.df(log_return, type = "trend", selectlags = "AIC"))
+summary(ur.df(log_return, type = "drift", selectlags = "AIC"))
+summary(ur.df(log_return, type = "none", selectlags = "AIC"))
+```
+
+```{r}
+Acf(log_return)
+Pacf(log_return)
+```
+```{r}
+a_303=arima(log_return,c(3,0,3))
+summary(a_303)
+autoplot(a_303)
+checkresiduals(a_303)
+```
+
+```{r}
+a_505=arima(log_return,c(5,0,5))
+summary(a_505)
+autoplot(a_505)
+checkresiduals(a_505)
+
+```
+
+
+```{r}
+log_return_real=c(1.522099401,-0.606062461,-2.61754744,-2.208291629,1.267845826,0,-2.390552085,-0.323102058,	-2.955880224,0.332779009)
+fc_log_return=forecast(a_303,h=10)
+plot(fc_log_return)
+fc_log_return=fc_log_return$mean
+rmse(log_return_real,fc_log_return)
+smape(log_return_real,fc_log_return)
+p=data.frame(tl=seq_along(log_return_real),log_return_real,fc_log_return)
+ggplot(p,aes(x=tl))+geom_line(aes(y=log_return_real,color="Loi suat thuc te"),linewidth=1)+geom_line(aes(y=fc_log_return,color="Loi suat du bao"),linewidth=1)+labs(title = "So sanh chuoi loi suat du bao va thuc te",x="Time",y="Log return")+scale_color_manual(values = c("Loi suat thuc te" = "red", "Loi suat du bao" = "blue")) +
+  theme_minimal()
+```
+```{r}
+log_return_real=c(1.522099401,-0.606062461,-2.61754744,-2.208291629,1.267845826,0,-2.390552085,-0.323102058,	-2.955880224,0.332779009)
+fc_log_return2=forecast(a_505,h=10)
+plot(fc_log_return2)
+fc_log_return2=fc_log_return2$mean
+rmse(log_return_real,fc_log_return2)
+smape(log_return_real,fc_log_return2)
+```
+
+
+
+
